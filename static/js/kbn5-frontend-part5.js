@@ -243,19 +243,80 @@
     $("kbn5-order-timeline").textContent = "Loading latest order status…";
 
     try {
-      // Uses the existing order identifier; adjust if your backend uses another path.
-      const data = await request(
-        "/api/v1/orders/" + encodeURIComponent(orderId(order))
-      );
-      const fresh = data.order || data.data || data;
+      const id = encodeURIComponent(orderId(order));
+      const [detailResult, trackingResult] = await Promise.allSettled([
+        request("/api/v1/customer/orders/" + id),
+        request("/api/v1/tracking/" + id)
+      ]);
+
+      let fresh = order;
+
+      if (detailResult.status === "fulfilled") {
+        const result = detailResult.value;
+        fresh = result.order || result.data || result;
+      }
+
+      if (trackingResult.status === "fulfilled") {
+        const tracking = trackingResult.value;
+        const trackedOrder = tracking.order || {};
+
+        fresh = {
+          ...fresh,
+          status: trackedOrder.current_status || trackedOrder.status || fresh.status,
+          payment_status: trackedOrder.payment_status || fresh.payment_status,
+          total_paise: trackedOrder.total_paise ?? fresh.total_paise,
+          tracking_timeline: Array.isArray(tracking.timeline) ? tracking.timeline : []
+        };
+      }
+
       selectedOrder = fresh;
       renderOrderDetails(fresh);
-      setMessage("Order details updated.");
-    } catch (_) {
-      // Still display the order from the history response.
+
+      if (trackingResult.status === "fulfilled") {
+        renderBackendTimeline(fresh.tracking_timeline || []);
+        setMessage("Order details and tracking updated.");
+      } else {
+        setMessage("Order details loaded; tracking history is temporarily unavailable.");
+      }
+    } catch (error) {
       renderOrderDetails(order);
-      setMessage("Showing available order details. Latest status may need a refresh.");
+      setMessage("Could not refresh order details: " + error.message, true);
     }
+  }
+
+  function renderBackendTimeline(events) {
+    const timeline = $("kbn5-order-timeline");
+    timeline.replaceChildren();
+
+    if (!events.length) {
+      timeline.appendChild(makeText("p", "No tracking events are available yet."));
+      return;
+    }
+
+    events.forEach((event, index) => {
+      const row = document.createElement("div");
+      row.className = "kbn5-timeline-step";
+
+      const marker = makeText("span", "✓", "kbn5-timeline-marker");
+      const text = document.createElement("span");
+      text.className = "kbn5-timeline-text";
+
+      text.appendChild(makeText(
+        "strong",
+        event.label || statusLabel(normaliseStatus(event.status))
+      ));
+
+      if (event.note) {
+        text.appendChild(makeText("small", event.note));
+      }
+
+      if (event.created_at) {
+        text.appendChild(makeText("small", dateLabel(event.created_at)));
+      }
+
+      row.append(marker, text);
+      timeline.appendChild(row);
+    });
   }
 
   async function loadOrders() {
@@ -264,7 +325,7 @@
 
     try {
       // If the orders blueprint uses a different history URL, change this endpoint.
-      const data = await request("/api/v1/orders/");
+      const data = await request("/api/v1/customer/orders/");
       orders = orderRows(data);
       setMessage(orders.length ? "Your orders are ready." : "No orders to display.");
       renderOrders();
