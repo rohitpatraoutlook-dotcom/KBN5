@@ -527,8 +527,18 @@ async function loadLiveProducts() {
     renderAdmin();
     el("result-title").textContent = "Live catalogue";
   } catch (error) {
-    el("result-title").textContent = "Demo catalogue · API unavailable";
-    showToast("Live products unavailable; showing demo items");
+    // Never present demo products as real, purchasable inventory.
+    catalogue = [];
+    for (const id of Object.keys(cart)) delete cart[id];
+
+    renderCategories();
+    renderProducts();
+    renderCart();
+
+    el("result-title").textContent = "Catalogue temporarily unavailable";
+    el("result-count").textContent = "Please try again shortly";
+    showToast("Could not load live products. Please refresh and try again.");
+    console.error("KBN5 live catalogue error:", error);
   }
 }
 
@@ -881,7 +891,7 @@ async function loadMyOrders() {
   }
 
   try {
-    const data = await kbn5Api("/api/v1/orders/");
+    const data = await kbn5Api("/api/v1/customer/orders/");
     const orders = Array.isArray(data)
       ? data
       : (data.orders || data.items || []);
@@ -924,3 +934,29 @@ async function loadMyOrders() {
     list.appendChild(failed);
   }
 }
+
+// KBN5: show the admin navigation only to authenticated admins.
+(function installKbn5RoleNavigation() {
+  const originalUpdateAccountUI = window.updateAccountUI;
+
+  if (typeof originalUpdateAccountUI !== "function") return;
+
+  window.updateAccountUI = function () {
+    originalUpdateAccountUI();
+
+    const adminButton = document.querySelector(".admin-link[onclick='showAdmin()']");
+    if (adminButton) {
+      adminButton.hidden = !(
+        window.accountToken &&
+        window.accountUser &&
+        window.accountUser.role === "admin"
+      );
+    }
+  };
+
+  window.addEventListener("DOMContentLoaded", function () {
+    window.updateAccountUI();
+  });
+
+  window.updateAccountUI();
+})();
