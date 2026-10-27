@@ -1,394 +1,217 @@
-/* KBN5 Operations Dashboard — Part 9 */
+/* KBN5 Operations UI — corrected routes and safe initialization */
 (() => {
   "use strict";
 
   const API = {
-    dashboard: "/api/v1/operations/dashboard/",
-    warehouseOrders: "/api/v1/warehouse/orders/",
-    deliveryOrders: "/api/v1/delivery/orders/",
+    dashboard: "/api/v1/admin/operations/dashboard",
+    warehouse: "/api/v1/admin/warehouse/orders/",
+    deliveryMine: "/api/v1/delivery/my",
+    partners: "/api/v1/admin/delivery-partners",
+    assign: "/api/v1/admin/deliveries/assign",
     staff: "/api/v1/admin/staff/"
   };
 
-  const $ = (id) => document.getElementById(id);
+  const $ = id => document.getElementById(id);
 
   async function request(url, options = {}) {
     const response = await fetch(url, {
       credentials: "same-origin",
+      ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...(options.body ? {"Content-Type": "application/json"} : {}),
         ...(options.headers || {})
-      },
-      ...options
+      }
     });
 
     const data = await response.json().catch(() => ({}));
-
     if (!response.ok) {
-      throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      throw new Error(data.message || data.error || `HTTP ${response.status}`);
     }
-
     return data;
   }
 
-  function getList(data) {
-    if (Array.isArray(data)) return data;
-    return data.results || data.items || data.orders || data.staff || [];
-  }
-
-  function showMessage(message, error = false) {
+  function message(text, error = false) {
     const el = $("kbn5-ops-message");
-    if (!el) return;
-    el.textContent = message;
-    el.dataset.type = error ? "error" : "success";
+    if (el) {
+      el.textContent = text;
+      el.dataset.type = error ? "error" : "success";
+    }
   }
 
-  function money(value) {
-    const amount = Number(value || 0);
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 2
-    }).format(amount / 100);
+  function list(data) {
+    if (Array.isArray(data)) return data;
+    return data.items || data.results || data.orders || data.staff || [];
   }
 
-  function setMetric(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value ?? "—";
-  }
-
-  function safeText(value) {
-    return String(value ?? "");
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    })[c]);
   }
 
   async function loadDashboard() {
     try {
-      const data = await request(API.dashboard);
-      const summary = data.summary || data.dashboard || data;
-
-      setMetric("kbn5-ops-orders", summary.total_orders ?? summary.orders_count);
-      setMetric("kbn5-ops-picking", summary.picking_orders ?? summary.picking);
-      setMetric("kbn5-ops-ready", summary.ready_orders ?? summary.ready);
-      setMetric("kbn5-ops-delivery", summary.out_for_delivery ?? summary.delivering);
-      setMetric("kbn5-ops-staff", summary.active_delivery_staff ?? summary.active_staff);
-
-      showMessage("Operations summary loaded.");
-      return data;
-    } catch (error) {
-      showMessage("Dashboard: " + error.message, true);
+      const d = await request(API.dashboard);
+      const s = d.summary || d.dashboard || d;
+      const metrics = {
+        "kbn5-ops-orders": s.total_orders ?? s.active_orders ?? s.orders_count,
+        "kbn5-ops-picking": s.picking_orders ?? s.picking,
+        "kbn5-ops-ready": s.ready_orders ?? s.ready_for_dispatch,
+        "kbn5-ops-delivery": s.out_for_delivery ?? s.delivering,
+        "kbn5-ops-staff": s.active_delivery_staff ?? s.active_staff,
+        "kbn5-ops-products": s.total_products ?? s.products_count,
+        "kbn5-ops-low-stock": s.low_stock_count,
+        "kbn5-ops-customers": s.total_customers ?? s.customers_count
+      };
+      Object.entries(metrics).forEach(([id, value]) => {
+        const el = $(id);
+        if (el) el.textContent = value ?? "—";
+      });
+      message("Dashboard refreshed.");
+      return d;
+    } catch (e) {
+      message("Dashboard: " + e.message, true);
       return null;
     }
   }
 
+  async function loadWarehouse() {
+    const container = $("kbn5-ops-warehouse-orders");
+    if (!container) return;
+    try {
+      const data = await request(API.warehouse);
+      const orders = list(data);
+      if (!orders.length) {
+        container.textContent = "No warehouse orders found.";
+        return;
+      }
+      container.innerHTML = orders.map(o => {
+        const id = Number(o.id ?? o.order_id ?? 0);
+        const status = o.status || "confirmed";
+        return `<article class="kbn5-ops-order">
+          <strong>${esc(o.order_number || `Order #${id}`)}</strong>
+          <span>${esc(status.replaceAll("_", " "))}</span>
+          <button type="button" data-kbn5-advance="${id}">Advance stage</button>
+        </article>`;
+      }).join("");
+      message("Warehouse orders loaded.");
+    } catch (e) {
+      message("Warehouse: " + e.message, true);
+    }
+  }
+
+  async function advanceWarehouse(id) {
+    try {
+      await request(`${API.warehouse}${id}/advance`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      message(`Order #${id} advanced.`);
+      await Promise.all([loadWarehouse(), loadDashboard()]);
+    } catch (e) {
+      message("Advance failed: " + e.message, true);
+    }
+  }
+
+  async function loadStaff() {
+    const container = $("kbn5-ops-staff-list");
+    if (!container) return;
+    try {
+      const data = await request(API.staff);
+      const staff = list(data);
+      container.innerHTML = staff.length
+        ? staff.map(s => `<div class="kbn5-ops-staff">
+            <strong>${esc(s.name || s.full_name || s.email || `Staff #${s.id}`)}</strong>
+            <span>${esc(s.role || "staff")}</span>
+          </div>`).join("")
+        : "<p>No staff found.</p>";
+    } catch (e) {
+      message("Staff: " + e.message, true);
+    }
+  }
+
+  async function loadDeliveryAssignments() {
+    const container = $("kbn5-ops-delivery-orders");
+    if (!container) return;
+    try {
+      const [deliveryData, partnerData] = await Promise.all([
+        request(API.deliveryMine),
+        request(API.partners)
+      ]);
+      const deliveries = list(deliveryData);
+      const partners = list(partnerData);
+      container.innerHTML = deliveries.length
+        ? deliveries.map(d => `<article class="kbn5-ops-order">
+            <strong>Delivery #${esc(d.id ?? d.assignment_id)}</strong>
+            <span>${esc(d.status || "assigned")}</span>
+          </article>`).join("")
+        : "<p>No delivery assignments returned for this account.</p>";
+
+      const select = $("kbn5-ops-staff-select");
+      if (select) {
+        select.innerHTML = '<option value="">Select delivery partner</option>' +
+          partners.map(p => `<option value="${Number(p.id)}">${esc(p.name || p.full_name || p.email || `Partner #${p.id}`)}</option>`).join("");
+      }
+    } catch (e) {
+      message("Delivery data: " + e.message, true);
+    }
+  }
+
+  async function assignDelivery() {
+    const orderEl = $("kbn5-ops-assignment-order");
+    const staffEl = $("kbn5-ops-staff-select");
+    const orderId = Number(orderEl?.value);
+    const staffId = Number(staffEl?.value);
+    if (!orderId || !staffId) {
+      message("Enter order ID and select a delivery partner.", true);
+      return;
+    }
+    try {
+      await request(API.assign, {
+        method: "POST",
+        body: JSON.stringify({order_id: orderId, delivery_partner_id: staffId})
+      });
+      message("Delivery assignment submitted.");
+      await loadDashboard();
+      await loadDeliveryAssignments();
+    } catch (e) {
+      message("Assignment failed: " + e.message, true);
+    }
+  }
+
+  async function refresh() {
+    await Promise.all([
+      loadDashboard(),
+      loadWarehouse(),
+      loadStaff(),
+      loadDeliveryAssignments()
+    ]);
+  }
+
+  document.addEventListener("click", event => {
+    const advance = event.target.closest("[data-kbn5-advance]");
+    if (advance) advanceWarehouse(Number(advance.dataset.kbn5Advance));
+
+    if (event.target.closest("#kbn5-ops-refresh")) refresh();
+    if (event.target.closest("#kbn5-ops-close")) {
+      const panel = $("kbn5-ops-panel");
+      if (panel) panel.hidden = true;
+    }
+    if (event.target.closest("#kbn5-ops-toggle")) {
+      const panel = $("kbn5-ops-panel");
+      if (panel) {
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) refresh();
+      }
+    }
+    if (event.target.closest("#kbn5-ops-assign")) assignDelivery();
+  });
+
   window.KBN5OperationsUI = {
-    loadDashboard
+    loadDashboard,
+    loadWarehouseOrders: loadWarehouse,
+    loadStaff,
+    loadDeliveryAssignments,
+    refresh
   };
 })();
-
-/* Warehouse order management */
-
-function renderWarehouseOrders(data) {
-  const container = document.getElementById("kbn5-ops-warehouse-orders");
-  if (!container) return;
-
-  const orders = getList(data);
-
-  if (!orders.length) {
-    container.innerHTML = '<p class="kbn5-ops-empty">No warehouse orders found.</p>';
-    return;
-  }
-
-  container.innerHTML = orders.map((order) => {
-    const id = order.id ?? order.order_id ?? "";
-    const number = order.order_number || `Order #${id}`;
-    const status = order.status || order.fulfillment_status || "pending";
-    const items = order.items_count ?? order.item_count ?? "—";
-
-    return `
-      <article class="kbn5-ops-order" data-order-id="${Number(id) || 0}">
-        <div class="kbn5-ops-order-info">
-          <strong>${escapeHTML(number)}</strong>
-          <span>${escapeHTML(status.replaceAll("_", " "))}</span>
-          <small>Items: ${escapeHTML(items)}</small>
-        </div>
-        <label>
-          Update status
-          <select class="kbn5-ops-warehouse-status">
-            ${["pending", "picking", "packed", "ready", "completed"].map(s =>
-              `<option value="${s}" ${s === status ? "selected" : ""}>${s}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <button type="button" class="kbn5-ops-save-warehouse"
-          data-id="${Number(id) || 0}">Save</button>
-      </article>`;
-  }).join("");
-}
-
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
-}
-
-async function loadWarehouseOrders() {
-  try {
-    const data = await request(API.warehouseOrders);
-    renderWarehouseOrders(data);
-    showMessage("Warehouse orders loaded.");
-  } catch (error) {
-    showMessage("Warehouse orders: " + error.message, true);
-  }
-}
-
-async function updateWarehouseOrder(id, status) {
-  try {
-    await request(`${API.warehouseOrders}${encodeURIComponent(id)}/`, {
-      method: "PATCH",
-      body: JSON.stringify({ status })
-    });
-
-    showMessage(`Order #${id} updated.`);
-    await loadWarehouseOrders();
-    await loadDashboard();
-  } catch (error) {
-    showMessage("Could not update order: " + error.message, true);
-  }
-}
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest(".kbn5-ops-save-warehouse");
-  if (!button) return;
-
-  const card = button.closest(".kbn5-ops-order");
-  const select = card?.querySelector(".kbn5-ops-warehouse-status");
-  const id = Number(button.dataset.id);
-
-  if (!id || !select) {
-    showMessage("Order ID is missing.", true);
-    return;
-  }
-
-  updateWarehouseOrder(id, select.value);
-});
-
-window.KBN5OperationsUI.loadWarehouseOrders = loadWarehouseOrders;
-
-/* Delivery assignment management */
-
-function renderDeliveryOrders(data) {
-  const container = document.getElementById("kbn5-ops-delivery-orders");
-  if (!container) return;
-
-  const orders = getList(data);
-
-  if (!orders.length) {
-    container.innerHTML = '<p class="kbn5-ops-empty">No delivery orders found.</p>';
-    return;
-  }
-
-  container.innerHTML = orders.map((order) => {
-    const id = Number(order.id ?? order.order_id ?? 0);
-    const number = order.order_number || `Order #${id}`;
-    const status = order.status || "ready";
-    const staffId = order.delivery_staff_id ?? order.assigned_staff_id ?? "";
-
-    return `
-      <article class="kbn5-ops-order">
-        <div class="kbn5-ops-order-info">
-          <strong>${escapeHTML(number)}</strong>
-          <span>Status: ${escapeHTML(status.replaceAll("_", " "))}</span>
-          <small>Assigned staff: ${escapeHTML(staffId || "Unassigned")}</small>
-        </div>
-        <label>
-          Delivery status
-          <select class="kbn5-ops-delivery-status">
-            ${["ready", "assigned", "picked_up", "out_for_delivery", "delivered", "failed"].map(s =>
-              `<option value="${s}" ${s === status ? "selected" : ""}>${s.replaceAll("_", " ")}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <button type="button" class="kbn5-ops-save-delivery"
-          data-id="${id}">Update</button>
-      </article>`;
-  }).join("");
-}
-
-async function loadDeliveryOrders() {
-  try {
-    const data = await request(API.deliveryOrders);
-    renderDeliveryOrders(data);
-    showMessage("Delivery orders loaded.");
-  } catch (error) {
-    showMessage("Delivery orders: " + error.message, true);
-  }
-}
-
-async function updateDeliveryOrder(id, status) {
-  try {
-    await request(`${API.deliveryOrders}${encodeURIComponent(id)}/`, {
-      method: "PATCH",
-      body: JSON.stringify({ status })
-    });
-
-    showMessage(`Delivery order #${id} updated.`);
-    await loadDeliveryOrders();
-    await loadDashboard();
-  } catch (error) {
-    showMessage("Delivery update failed: " + error.message, true);
-  }
-}
-
-document.addEventListener("click", (event) => {
-  const button = event.target.closest(".kbn5-ops-save-delivery");
-  if (!button) return;
-
-  const card = button.closest(".kbn5-ops-order");
-  const select = card?.querySelector(".kbn5-ops-delivery-status");
-  const id = Number(button.dataset.id);
-
-  if (!id || !select) {
-    showMessage("Delivery order ID is missing.", true);
-    return;
-  }
-
-  updateDeliveryOrder(id, select.value);
-});
-
-window.KBN5OperationsUI.loadDeliveryOrders = loadDeliveryOrders;
-
-/* Delivery staff and order assignment */
-
-async function loadDeliveryStaff() {
-  const select = document.getElementById("kbn5-ops-staff-select");
-  const container = document.getElementById("kbn5-ops-staff-list");
-
-  try {
-    const data = await request(API.staff);
-    const staff = getList(data);
-
-    if (select) {
-      select.innerHTML = '<option value="">Select delivery staff</option>' +
-        staff.map((person) => {
-          const id = person.id ?? person.user_id;
-          const name = person.name || person.full_name ||
-            person.username || person.email || `Staff ${id}`;
-
-          return `<option value="${Number(id) || 0}">${escapeHTML(name)}</option>`;
-        }).join("");
-    }
-
-    if (container) {
-      container.innerHTML = staff.length
-        ? staff.map((person) => {
-            const id = person.id ?? person.user_id;
-            const name = person.name || person.full_name ||
-              person.username || person.email || `Staff ${id}`;
-            const active = person.is_active ?? person.active ?? true;
-
-            return `
-              <article class="kbn5-ops-staff">
-                <strong>${escapeHTML(name)}</strong>
-                <span>${active ? "Active" : "Inactive"}</span>
-                <small>${escapeHTML(person.phone || person.email || "")}</small>
-              </article>`;
-          }).join("")
-        : '<p class="kbn5-ops-empty">No staff found.</p>';
-    }
-
-    showMessage("Delivery staff loaded.");
-  } catch (error) {
-    showMessage("Staff list: " + error.message, true);
-  }
-}
-
-async function assignDeliveryStaff() {
-  const orderInput = document.getElementById("kbn5-ops-assignment-order");
-  const staffSelect = document.getElementById("kbn5-ops-staff-select");
-
-  const orderId = Number(orderInput?.value);
-  const staffId = Number(staffSelect?.value);
-
-  if (!orderId || !staffId) {
-    showMessage("Enter an order ID and select delivery staff.", true);
-    return;
-  }
-
-  try {
-    await request(
-      `${API.deliveryOrders}${encodeURIComponent(orderId)}/assign/`,
-      {
-        method: "POST",
-        body: JSON.stringify({ staff_id: staffId })
-      }
-    );
-
-    showMessage(`Staff assigned to order #${orderId}.`);
-    if (orderInput) orderInput.value = "";
-
-    await Promise.all([
-      loadDeliveryOrders(),
-      loadDashboard()
-    ]);
-  } catch (error) {
-    showMessage("Assignment failed: " + error.message, true);
-  }
-}
-
-document.addEventListener("click", (event) => {
-  if (event.target.closest("#kbn5-ops-assign-button")) {
-    assignDeliveryStaff();
-  }
-
-  if (event.target.closest("#kbn5-ops-load-staff")) {
-    loadDeliveryStaff();
-  }
-});
-
-window.KBN5OperationsUI.loadDeliveryStaff = loadDeliveryStaff;
-window.KBN5OperationsUI.assignDeliveryStaff = assignDeliveryStaff;
-
-/* Operations dashboard controls */
-
-async function refreshOperations() {
-  showMessage("Refreshing operations dashboard...");
-
-  await Promise.allSettled([
-    loadDashboard(),
-    loadWarehouseOrders(),
-    loadDeliveryOrders(),
-    loadDeliveryStaff()
-  ]);
-}
-
-function openOperations() {
-  const panel = document.getElementById("kbn5-ops-panel");
-  if (panel) {
-    panel.hidden = false;
-    panel.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  refreshOperations();
-}
-
-function closeOperations() {
-  const panel = document.getElementById("kbn5-ops-panel");
-  if (panel) panel.hidden = true;
-}
-
-document.addEventListener("click", (event) => {
-  if (event.target.closest("#kbn5-ops-toggle")) openOperations();
-  if (event.target.closest("#kbn5-ops-close")) closeOperations();
-  if (event.target.closest("#kbn5-ops-refresh")) refreshOperations();
-});
-
-window.KBN5OperationsUI.refresh = refreshOperations;
-window.KBN5OperationsUI.open = openOperations;
-window.KBN5OperationsUI.close = closeOperations;
-
-document.addEventListener("DOMContentLoaded", () => {
-  const panel = document.getElementById("kbn5-ops-panel");
-  if (panel && !panel.hidden) refreshOperations();
-});
