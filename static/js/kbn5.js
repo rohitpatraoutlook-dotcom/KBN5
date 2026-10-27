@@ -484,9 +484,14 @@ async function restoreKbn5Account() {
 restoreKbn5Account();
 
 
+// Prevent concurrent checkout submissions in this browser tab.
+let checkoutInProgress = false;
+
 // Save delivery address, then submit the order to the backend.
 el("checkout-form").addEventListener("submit", async event => {
   event.preventDefault();
+
+  if (checkoutInProgress) return;
 
   const button = el("place-order-button");
   const message = el("checkout-message");
@@ -497,6 +502,7 @@ el("checkout-form").addEventListener("submit", async event => {
     return;
   }
 
+  checkoutInProgress = true;
   button.disabled = true;
   message.textContent = "Saving address and placing order...";
 
@@ -540,18 +546,34 @@ el("checkout-form").addEventListener("submit", async event => {
       throw new Error("Address saved, but its ID was not returned. Please check your account addresses before retrying.");
     }
 
+    const keyName = "kbn5_checkout_idempotency_key";
+    let checkoutKey = sessionStorage.getItem(keyName);
+    if (!checkoutKey) {
+      checkoutKey = crypto.randomUUID();
+      sessionStorage.setItem(keyName, checkoutKey);
+    }
+
     const result = await kbn5Api("/api/v1/orders/checkout", {
       method: "POST",
-      body: JSON.stringify({address_id: addressId})
+      body: JSON.stringify({
+        address_id: addressId,
+        idempotency_key: checkoutKey
+      })
     });
+    sessionStorage.removeItem(keyName);
 
     const order = result.order || {};
-    message.textContent = `Order ${order.order_number || "#" + (order.id || "")} created. Payment is ${order.payment_status || "pending"}.`;
-    showToast("Order request successful");
-    await refreshServerCart();
+    message.textContent = `Order ${order.order_number || "#" + (order.id || "")} created successfully. Order status: ${order.status || "placed"}. Payment status: ${order.payment_status || "pending"}. Online payment is not yet integrated.`;
+    showToast("Order created successfully");
+    try {
+      await refreshServerCart();
+    } catch (refreshError) {
+      console.warn("Cart refresh failed after successful checkout:", refreshError);
+    }
   } catch (error) {
     message.textContent = error.message || "Checkout failed. Please review your details and try again.";
   } finally {
+    checkoutInProgress = false;
     button.disabled = false;
   }
 });

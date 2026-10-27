@@ -1,9 +1,11 @@
+import hashlib
+import json
 import secrets
 from datetime import datetime, timezone
 
 from flask import Blueprint, g, jsonify, request
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from models import (
@@ -37,8 +39,20 @@ def order_summary(order):
 @order_bp.post("/checkout")
 @api_login_required
 def checkout():
+    fingerprint = None
     data = request.get_json(silent=True) or {}
     address_id = data.get("address_id")
+    idempotency_key = data.get("idempotency_key")
+
+    if (
+        not isinstance(idempotency_key, str)
+        or not 16 <= len(idempotency_key) <= 64
+        or not idempotency_key.isascii()
+        or not idempotency_key.replace("-", "").replace("_", "").isalnum()
+    ):
+        return jsonify({
+            "error": "A valid checkout idempotency_key is required."
+        }), 400
 
     if type(address_id) is not int or address_id < 1:
         return jsonify({"error": "A valid saved address_id is required."}), 400
@@ -46,6 +60,14 @@ def checkout():
     user_id = g.kbn5_user.id
 
     try:
+        # Find a previous request; validate its fingerprint after reading the cart.
+        existing_order = db.session.execute(
+            select(Order).where(
+                Order.user_id == user_id,
+                Order.idempotency_key == idempotency_key,
+            )
+        ).scalar_one_or_none()
+
         address = db.session.execute(
             select(CustomerAddress).where(
                 CustomerAddress.id == address_id,
@@ -75,8 +97,34 @@ def checkout():
         ).scalars().all()
 
         if not cart_items:
+            if existing_order is not None:
+                return jsonify({
+                    "message": "Checkout request already processed.",
+                    "order": order_summary(existing_order),
+                }), 200
             return jsonify({"error": "Your cart is empty."}), 400
 
+        fingerprint_data = {
+            "address_id": address_id,
+            "items": [
+                [item.product_id, item.quantity]
+                for item in cart_items
+            ],
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(fingerprint_data, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+
+        if existing_order is not None:
+            saved_fingerprint = existing_order.idempotency_fingerprint
+            if not saved_fingerprint or saved_fingerprint != fingerprint:
+                return jsonify({
+                    "error": "Checkout key was already used for a different cart or address."
+                }), 409
+            return jsonify({
+                "message": "Checkout request already processed.",
+                "order": order_summary(existing_order),
+            }), 200
         lines = []
         subtotal_paise = 0
 
@@ -135,24 +183,15 @@ def checkout():
             product = line["product"]
             quantity = line["quantity"]
 
-            # Conditional update protects against stock changes.
-            result = db.session.execute(
-                select(Product)
-                .where(Product.id == product.id)
-                .with_for_update()
-            ).scalar_one()
-
-            if result.stock_quantity < quantity or not result.is_active:
-                db.session.rollback()
-                return jsonify({
-                    "error": f"Stock changed for {product.name}; retry checkout."
-                }), 409
-
-            result.stock_quantity -= quantity
+            # The product row was locked and checked in the checkout loop.
+            # Deduct stock within the same transaction as order creation.
+            product.stock_quantity -= quantity
 
         order = Order(
             order_number="KBN5-" + secrets.token_hex(6).upper(),
             user_id=user_id,
+            idempotency_key=idempotency_key,
+            idempotency_fingerprint=fingerprint,
             status="placed",
             payment_status="pending",
             total_paise=total_paise,
@@ -186,6 +225,39 @@ def checkout():
         order_number = order.order_number
         db.session.commit()
 
+    except IntegrityError:
+        db.session.rollback()
+
+        # A concurrent request may have created this same order first.
+        try:
+            existing_order = db.session.execute(
+                select(Order).where(
+                    Order.user_id == user_id,
+                    Order.idempotency_key == idempotency_key,
+                )
+            ).scalar_one_or_none()
+
+            if existing_order is not None:
+                saved_fingerprint = existing_order.idempotency_fingerprint
+                if (
+                    fingerprint is None
+                    or not saved_fingerprint
+                    or saved_fingerprint != fingerprint
+                ):
+                    return jsonify({
+                        "error": "Checkout key was already used for a different cart or address."
+                    }), 409
+                return jsonify({
+                    "message": "Checkout request already processed.",
+                    "order": order_summary(existing_order),
+                }), 200
+        except SQLAlchemyError:
+            db.session.rollback()
+
+        return jsonify({
+            "error": "Checkout could not be completed. Please retry."
+        }), 500
+
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({
@@ -194,15 +266,7 @@ def checkout():
 
     return jsonify({
         "message": "Order placed successfully.",
-        "order": {
-            "id": order_id,
-            "order_number": order_number,
-            "status": "placed",
-            "payment_status": "pending",
-            "subtotal_paise": subtotal_paise,
-            "delivery_fee_paise": delivery_fee_paise,
-            "total_paise": total_paise,
-        },
+        "order": order_summary(order),
     }), 201
 
 

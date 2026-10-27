@@ -60,15 +60,24 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(40), unique=True, nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    idempotency_key = db.Column(db.String(64), nullable=True)
+    idempotency_fingerprint = db.Column(db.String(64), nullable=True)
     status = db.Column(db.String(40), nullable=False, default="placed")
+
+    __table_args__ = (
+        db.Index(
+            "uq_orders_user_idempotency_key",
+            "user_id",
+            "idempotency_key",
+            unique=True,
+        ),
+    )
+
     payment_status = db.Column(db.String(30), nullable=False, default="pending")
     total_paise = db.Column(db.Integer, nullable=False, default=0)
     delivery_fee_paise = db.Column(db.Integer, nullable=False, default=0)
     delivery_address = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
-
-    user = db.relationship("User", backref="orders")
-
 
 class OrderItem(db.Model):
     __tablename__ = "order_items"
