@@ -11,8 +11,8 @@ services:
         fromDatabase:
           name: kbn5-db
           property: connectionString
-      - key: FIREBASE_PROJECT_ID
-        sync: false
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
 
 databases:
   - name: kbn5-db
