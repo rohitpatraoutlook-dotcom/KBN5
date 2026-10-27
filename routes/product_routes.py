@@ -20,6 +20,7 @@ def product_payload(product):
         "stock_quantity": product.stock_quantity,
         "image_key": product.image_key,
         "category_id": product.category_id,
+        "category_name": product.category.name if product.category else "Essentials",
     }
 
 

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#12382b">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>KBN5 — 5 Minutes in Kiriburu</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/kbn5.css') }}">
 </head>
@@ -14,6 +15,8 @@
   <div class="location"><small>DELIVERING TO</small><b>Kiriburu, Jharkhand</b></div>
   <label class="search">⌕ <input id="search" placeholder="Search products..."></label>
   <button class="admin-link" onclick="showAdmin()">Admin ↗</button>
+  <button id="orders-button" class="admin-link" onclick="openOrders()">My Orders</button>
+  <button id="account-button" class="admin-link" onclick="openAccount()">Sign in</button>
   <button class="cart-button" onclick="openCart()">Bag <span id="cart-count">0</span></button>
 </header>
 
@@ -75,6 +78,79 @@
   <p>#KBN-1025 · ₹190 · Delivered</p></section>
   <section class="admin-panel"><h2>Product catalogue</h2><div id="admin-products" class="admin-products"></div></section>
 </main>
+
+
+<div class="overlay" id="account-overlay" onclick="if(event.target===this)closeAccount()">
+  <aside class="cart-drawer">
+    <button class="close" onclick="closeAccount()">× Close</button>
+    <h2 id="account-title">Welcome to KBN5</h2>
+    <p class="muted">Sign in or create your customer account.</p>
+    <form id="account-form">
+      <label>Username or email
+        <input id="account-identity" required autocomplete="username" placeholder="Your username or email">
+      </label>
+      <label id="display-name-wrap" hidden>Display name
+        <input id="account-display-name" autocomplete="name" placeholder="Your name">
+      </label>
+      <label id="email-wrap" hidden>Email address
+        <input id="account-email" type="email" autocomplete="email" placeholder="you@example.com">
+      </label>
+      <label>Password
+        <input id="account-password" type="password" required minlength="12" maxlength="128" autocomplete="current-password" placeholder="At least 12 characters">
+      </label>
+      <button class="primary" id="account-submit" type="submit">Sign in</button>
+    </form>
+    <p id="account-message" class="muted" role="status"></p>
+    <button class="secondary" id="account-mode" type="button" onclick="toggleAccountMode()">Create an account</button>
+    <button class="secondary" id="account-logout" type="button" onclick="logoutAccount()" hidden>Sign out</button>
+  </aside>
+</div>
+
+
+
+<div class="overlay" id="orders-overlay" onclick="if(event.target===this)closeOrders()">
+  <aside class="cart-drawer">
+    <button class="close" onclick="closeOrders()">× Close</button>
+    <h2>My Orders</h2>
+    <p class="muted">Your recent KBN5 orders.</p>
+    <div id="orders-list" aria-live="polite">
+      <p class="muted">Open My Orders to load your orders.</p>
+    </div>
+    <button class="secondary" type="button" onclick="loadMyOrders()">Refresh orders</button>
+  </aside>
+</div>
+
+<div class="overlay" id="checkout-overlay" onclick="if(event.target===this)closeCheckout()">
+  <aside class="cart-drawer">
+    <button class="close" onclick="closeCheckout()">× Close</button>
+    <h2>Delivery details</h2>
+    <p class="muted">Where should we deliver your order?</p>
+
+    <form id="checkout-form">
+      <label>Recipient name
+        <input id="delivery-name" required maxlength="100" autocomplete="name">
+      </label>
+      <label>Phone number
+        <input id="delivery-phone" required inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" autocomplete="tel">
+      </label>
+      <label>House / street address
+        <input id="delivery-line" required maxlength="250" autocomplete="street-address">
+      </label>
+      <label>Area / locality
+        <input id="delivery-area" required maxlength="100">
+      </label>
+      <label>PIN code
+        <input id="delivery-pincode" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit PIN code" autocomplete="postal-code">
+      </label>
+      <label>Landmark (optional)
+        <input id="delivery-landmark" maxlength="150">
+      </label>
+      <button class="primary" id="place-order-button" type="submit">Place order</button>
+    </form>
+
+    <p id="checkout-message" class="muted" role="status"></p>
+  </aside>
+</div>
 
 <div class="overlay" id="cart-overlay" onclick="if(event.target===this)closeCart()">
   <aside class="cart-drawer">

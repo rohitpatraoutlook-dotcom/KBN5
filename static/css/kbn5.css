@@ -314,3 +314,134 @@ footer {
   .stats-grid { grid-template-columns:repeat(2,1fr) }
   .admin-products { grid-template-columns:repeat(2,1fr) }
 }
+
+/* KBN5 account and checkout forms */
+.cart-drawer label {
+  display: block;
+  margin: 14px 0;
+  color: #26382e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cart-drawer input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 7px;
+  padding: 12px 13px;
+  border: 1px solid #d5dfd4;
+  border-radius: 10px;
+  background: #fff;
+  color: #183d2c;
+  font: inherit;
+  font-weight: 400;
+}
+
+.cart-drawer input:focus {
+  outline: 2px solid #6b9e79;
+  outline-offset: 1px;
+  border-color: #326b46;
+}
+
+.cart-drawer input:disabled,
+.cart-drawer button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cart-drawer form .primary {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+}
+
+.cart-drawer [hidden] {
+  display: none !important;
+}
+
+#account-message,
+#checkout-message {
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+#checkout-overlay,
+#account-overlay,
+#cart-overlay {
+  z-index: 1000;
+}
+
+#checkout-overlay.open,
+#account-overlay.open,
+#cart-overlay.open {
+  display: flex;
+}
+
+@media (max-width: 480px) {
+  .cart-drawer {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding: 20px 16px;
+  }
+
+  .cart-drawer input {
+    font-size: 16px;
+  }
+}
+
+/* Customer order history */
+.order-card {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #dce5d8;
+  border-radius: 12px;
+  background: #f8faf5;
+  overflow-wrap: anywhere;
+}
+
+.order-card h3 {
+  margin: 0 0 10px;
+  color: #183d2c;
+  font-size: 16px;
+}
+
+.order-card p {
+  margin: 7px 0;
+  font-size: 14px;
+}
+
+/* Consistent interaction and loading states */
+button {
+  touch-action: manipulation;
+}
+
+button:focus-visible {
+  outline: 2px solid #326b46;
+  outline-offset: 3px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.65);
+}
+
+.add-button:disabled {
+  background: #e5e9e2;
+  color: #657166;
+  border-color: #d5ddd2;
+}
+
+#place-order-button:disabled,
+#account-submit:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+#orders-list:empty {
+  min-height: 24px;
+}
