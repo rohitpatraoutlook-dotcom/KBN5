@@ -8,6 +8,64 @@
   <title>KBN5 — 5 Minutes in Kiriburu</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/kbn5.css') }}">
 </head>
+<!-- KBN5 Operations Dashboard -->
+<button id="kbn5-ops-toggle" class="kbn5-ops-toggle" type="button">
+  Operations Dashboard
+</button>
+
+<section id="kbn5-ops-panel" class="kbn5-ops-panel" hidden>
+  <header class="kbn5-ops-header">
+    <div>
+      <h2>Store Operations</h2>
+      <p>Warehouse, inventory workflow and delivery coordination</p>
+    </div>
+    <div class="kbn5-ops-actions">
+      <button id="kbn5-ops-refresh" type="button">Refresh</button>
+      <button id="kbn5-ops-close" type="button">Close</button>
+    </div>
+  </header>
+
+  <p id="kbn5-ops-message" role="status" aria-live="polite"></p>
+
+  <div class="kbn5-ops-metrics">
+    <article><span>Total Orders</span><strong id="kbn5-ops-orders">—</strong></article>
+    <article><span>Picking</span><strong id="kbn5-ops-picking">—</strong></article>
+    <article><span>Ready</span><strong id="kbn5-ops-ready">—</strong></article>
+    <article><span>Out for Delivery</span><strong id="kbn5-ops-delivery">—</strong></article>
+    <article><span>Active Staff</span><strong id="kbn5-ops-staff">—</strong></article>
+  </div>
+
+  <section class="kbn5-ops-section">
+    <h3>Warehouse Orders</h3>
+    <div id="kbn5-ops-warehouse-orders"></div>
+  </section>
+
+  <section class="kbn5-ops-section">
+    <h3>Delivery Orders</h3>
+    <div id="kbn5-ops-delivery-orders"></div>
+  </section>
+
+  <section class="kbn5-ops-section">
+    <h3>Assign Delivery Staff</h3>
+    <label for="kbn5-ops-assignment-order">Order ID</label>
+    <input id="kbn5-ops-assignment-order" type="number" min="1"
+      placeholder="Enter order ID">
+
+    <label for="kbn5-ops-staff-select">Delivery staff</label>
+    <select id="kbn5-ops-staff-select">
+      <option value="">Select delivery staff</option>
+    </select>
+
+    <button id="kbn5-ops-assign-button" type="button">Assign Staff</button>
+    <button id="kbn5-ops-load-staff" type="button">Reload Staff</button>
+
+    <div id="kbn5-ops-staff-list"></div>
+  </section>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part9.js') }}" defer></script>
+
+
 <body>
 <header class="topbar">
   <a class="brand" href="#"><span class="brand-mark">K5</span>
@@ -41,6 +99,59 @@
   <div>◷ <span><b>Quick ordering</b><small>Less time, less hassle</small></span></div>
   <div>₹ <span><b>Clear pricing</b><small>Know what you pay</small></span></div>
   <div>♡ <span><b>Daily essentials</b><small>Your neighbourhood</small></span></div>
+</section>
+
+
+
+<section id="kbn5-live-catalogue" class="kbn5-live-catalogue" aria-labelledby="kbn5-catalogue-heading">
+  <div class="kbn5-catalogue-heading">
+    <div>
+      <span class="eyebrow">FRESH PICKS · LOCAL ESSENTIALS</span>
+      <h2 id="kbn5-catalogue-heading">Shop everyday essentials</h2>
+      <p id="kbn5-catalogue-status" role="status" aria-live="polite">Preparing catalogue…</p>
+    </div>
+    <span id="kbn5-product-count" class="kbn5-product-count">0 products</span>
+  </div>
+  <label class="kbn5-search-label" for="kbn5-product-search">Search products</label>
+  <input id="kbn5-product-search" class="kbn5-product-search" type="search"
+         placeholder="Search milk, snacks, groceries…" autocomplete="off">
+  <div id="kbn5-category-filters" class="kbn5-category-filters" aria-label="Product categories"></div>
+  <label class="kbn5-stock-filter">
+    <input id="kbn5-in-stock-only" type="checkbox">
+    Show only in-stock products
+  </label>
+  <div id="kbn5-live-product-grid" class="kbn5-live-product-grid"></div>
+</section>
+
+<section class="kbn5-delivery-check" aria-labelledby="kbn5-delivery-heading">
+  <div class="kbn5-delivery-copy">
+    <span class="eyebrow">LOCAL DELIVERY</span>
+    <h2 id="kbn5-delivery-heading">Is KBN5 available in your area?</h2>
+    <p>Enter your PIN code to check delivery availability, minimum order and delivery charges.</p>
+    <p class="kbn5-current-location">
+      <span aria-hidden="true">⌖</span>
+      <strong id="kbn5-delivery-location">Kiriburu, Jharkhand</strong>
+    </p>
+  </div>
+  <form id="kbn5-serviceability-form" class="kbn5-pincode-form">
+    <label for="kbn5-pincode">6-digit PIN code</label>
+    <div class="kbn5-pincode-controls">
+      <input
+        id="kbn5-pincode"
+        name="pincode"
+        type="text"
+        inputmode="numeric"
+        autocomplete="postal-code"
+        pattern="[0-9]{6}"
+        minlength="6"
+        maxlength="6"
+        placeholder="e.g. 833222"
+        required
+      >
+      <button type="submit" class="primary">Check availability</button>
+    </div>
+    <p id="kbn5-serviceability-result" role="status" aria-live="polite"></p>
+  </form>
 </section>
 
 <section class="shop-section" id="shop">
@@ -223,5 +334,416 @@
 </div>
 <div id="toast" class="toast" role="status"></div>
 <script src="{{ url_for('static', filename='js/kbn5.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part1.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part2.js') }}" defer></script>\n
+<!-- KBN5 FRONTEND PART 3: CART DRAWER -->
+<button type="button" class="kbn5-cart-floating" data-kbn5-open-cart aria-label="Open shopping cart">
+  🛒 <span>Cart</span> <b id="kbn5-cart-count" hidden>0</b>
+</button>
+
+<div class="kbn5-cart-backdrop" data-kbn5-cart-backdrop></div>
+<aside id="kbn5-cart-drawer" class="kbn5-cart-drawer" aria-hidden="true" aria-label="Shopping cart">
+  <header class="kbn5-cart-header">
+    <div>
+      <span class="kbn5-cart-eyebrow">KBN5 QUICK COMMERCE</span>
+      <h2>Your cart</h2>
+    </div>
+    <button type="button" data-cart-action="close" class="kbn5-cart-close" aria-label="Close cart">×</button>
+  </header>
+
+  <div id="kbn5-cart-status" class="kbn5-cart-status" role="status" aria-live="polite"></div>
+  <div id="kbn5-cart-items" class="kbn5-cart-items"></div>
+
+  <section class="kbn5-cart-summary">
+    <div id="kbn5-cart-progress" class="kbn5-cart-progress" hidden>
+      <p id="kbn5-cart-minimum-message"></p>
+      <div class="kbn5-cart-progress-track">
+        <div id="kbn5-cart-progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="kbn5-cart-summary-row"><span>Subtotal</span><strong id="kbn5-cart-subtotal">₹0.00</strong></div>
+    <div class="kbn5-cart-summary-row"><span>Delivery fee</span><strong id="kbn5-cart-delivery">Check pincode</strong></div>
+    <div class="kbn5-cart-summary-row kbn5-cart-grand-total"><span>Total</span><strong id="kbn5-cart-total">₹0.00</strong></div>
+    <button id="kbn5-cart-checkout" type="button" data-cart-action="checkout" disabled>Continue to checkout</button>
+    <p class="kbn5-cart-footnote">Final delivery availability and charges are confirmed at checkout.</p>
+  </section>
+</aside>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part3.js') }}" defer></script>
+
+<!-- KBN5 FRONTEND PART 4: CHECKOUT -->
+<section id="kbn5-checkout-panel" class="kbn5-checkout-panel" hidden aria-hidden="true">
+  <div class="kbn5-checkout-inner">
+    <header class="kbn5-checkout-header">
+      <div>
+        <span class="kbn5-checkout-eyebrow">ALMOST THERE</span>
+        <h2>Checkout</h2>
+      </div>
+      <button type="button" id="kbn5-checkout-close" aria-label="Close checkout">×</button>
+    </header>
+
+    <p id="kbn5-checkout-message" role="status" aria-live="polite"></p>
+
+    <section class="kbn5-checkout-section">
+      <h3>1. Delivery address</h3>
+      <div id="kbn5-checkout-addresses">Loading saved addresses…</div>
+
+      <details class="kbn5-add-address">
+        <summary>＋ Add a new address</summary>
+        <form id="kbn5-new-address-form">
+          <label>Address label
+            <input id="kbn5-address-label" placeholder="Home, Work, etc.">
+          </label>
+          <label>Full name *
+            <input id="kbn5-address-name" required autocomplete="name">
+          </label>
+          <label>Phone number *
+            <input id="kbn5-address-phone" type="tel" required autocomplete="tel">
+          </label>
+          <label>Address line 1 *
+            <input id="kbn5-address-line1" required autocomplete="address-line1">
+          </label>
+          <label>Address line 2
+            <input id="kbn5-address-line2" autocomplete="address-line2">
+          </label>
+          <label>Landmark
+            <input id="kbn5-address-landmark">
+          </label>
+          <div class="kbn5-address-grid">
+            <label>City *
+              <input id="kbn5-address-city" required autocomplete="address-level2">
+            </label>
+            <label>State *
+              <input id="kbn5-address-state" required autocomplete="address-level1">
+            </label>
+          </div>
+          <label>PIN code *
+            <input id="kbn5-address-pincode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="postal-code">
+          </label>
+          <button type="submit" class="kbn5-checkout-secondary">Save address</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="kbn5-checkout-section">
+      <h3>2. Payment method</h3>
+      <label class="kbn5-payment-option">
+        <input type="radio" name="kbn5-payment-method" value="cod" checked>
+        <span><strong>Cash on delivery</strong><small>Pay when your order arrives, if available.</small></span>
+      </label>
+      <label class="kbn5-payment-option">
+        <input type="radio" name="kbn5-payment-method" value="upi">
+        <span><strong>UPI / Online payment</strong><small>Requires an enabled online payment gateway.</small></span>
+      </label>
+      <p id="kbn5-payment-note" class="kbn5-checkout-hint">Cash on delivery availability will be confirmed when you place the order.</p>
+    </section>
+
+    <section class="kbn5-checkout-section">
+      <h3>3. Order summary</h3>
+      <div id="kbn5-checkout-summary-items"></div>
+      <div class="kbn5-checkout-total-row"><span>Subtotal</span><strong id="kbn5-checkout-subtotal">₹0.00</strong></div>
+      <div class="kbn5-checkout-total-row"><span>Delivery fee</span><strong id="kbn5-checkout-delivery">Confirm at checkout</strong></div>
+      <div class="kbn5-checkout-total-row kbn5-checkout-final-total"><span>Estimated total</span><strong id="kbn5-checkout-total">₹0.00</strong></div>
+    </section>
+
+    <button id="kbn5-place-order" class="kbn5-place-order" type="button">Place order</button>
+    <div id="kbn5-order-result" class="kbn5-order-result" hidden>
+      <strong id="kbn5-order-result-number"></strong>
+      <p>Open your orders page to view the latest order status.</p>
+    </div>
+    <p class="kbn5-checkout-hint">Order confirmation depends on the server accepting the request. Do not retry repeatedly if the status is unclear; check your orders first.</p>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part4.js') }}" defer></script>
+
+<!-- KBN5 FRONTEND PART 5: ORDER HISTORY AND TRACKING -->
+<button type="button" class="kbn5-orders-floating" data-kbn5-open-orders>
+  📦 <span>My Orders</span>
+</button>
+
+<section id="kbn5-orders-panel" class="kbn5-orders-panel" hidden aria-hidden="true">
+  <div class="kbn5-orders-inner">
+    <header class="kbn5-orders-header">
+      <div>
+        <span class="kbn5-orders-eyebrow">YOUR KBN5 ORDERS</span>
+        <h2>My orders</h2>
+      </div>
+      <div class="kbn5-orders-header-actions">
+        <button type="button" id="kbn5-orders-refresh">↻ Refresh</button>
+        <button type="button" id="kbn5-orders-close" aria-label="Close orders">×</button>
+      </div>
+    </header>
+
+    <p id="kbn5-orders-message" role="status" aria-live="polite"></p>
+
+    <div class="kbn5-orders-layout">
+      <section class="kbn5-orders-list-section">
+        <h3>Order history</h3>
+        <div id="kbn5-orders-list">Loading your orders…</div>
+      </section>
+
+      <section id="kbn5-order-details" class="kbn5-order-details" hidden>
+        <span class="kbn5-orders-eyebrow">ORDER DETAILS</span>
+        <h3 id="kbn5-order-detail-number">Order</h3>
+        <p id="kbn5-order-detail-date"></p>
+        <div class="kbn5-order-detail-status">
+          <span>Status</span><strong id="kbn5-order-detail-status"></strong>
+        </div>
+
+        <h4>Delivery progress</h4>
+        <div id="kbn5-order-timeline"></div>
+
+        <div class="kbn5-order-facts">
+          <div><span>Order total</span><strong id="kbn5-order-detail-total"></strong></div>
+          <div><span>Payment</span><strong id="kbn5-order-payment-status"></strong></div>
+        </div>
+
+        <h4>Delivery address</h4>
+        <p id="kbn5-order-delivery-address"></p>
+        <p class="kbn5-orders-note">Order updates refresh approximately every 30 seconds while this page is open.</p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part5.js') }}" defer></script>
+
+<!-- KBN5 FRONTEND PART 6: CUSTOMER PROFILE -->
+<button type="button" class="kbn5-profile-floating" data-kbn5-open-profile>
+  👤 <span>Profile</span>
+</button>
+
+<section id="kbn5-profile-panel" class="kbn5-profile-panel" hidden aria-hidden="true">
+  <div class="kbn5-profile-inner">
+    <header class="kbn5-profile-header">
+      <div>
+        <span class="kbn5-profile-eyebrow">YOUR ACCOUNT</span>
+        <h2>My profile</h2>
+      </div>
+      <div class="kbn5-profile-header-actions">
+        <button type="button" id="kbn5-profile-refresh">↻ Refresh</button>
+        <button type="button" id="kbn5-profile-close" aria-label="Close profile">×</button>
+      </div>
+    </header>
+
+    <p id="kbn5-profile-message" role="status" aria-live="polite"></p>
+
+    <section class="kbn5-profile-section">
+      <h3>Account details</h3>
+      <div id="kbn5-profile-data">Loading account details…</div>
+    </section>
+
+    <section class="kbn5-profile-section">
+      <div class="kbn5-profile-section-heading">
+        <h3>Saved addresses</h3>
+        <button type="button" id="kbn5-profile-add-address" data-kbn5-add-address-shortcut class="kbn5-profile-secondary">＋ Add address</button>
+      </div>
+      <p class="kbn5-profile-hint">Manage delivery addresses saved to your account.</p>
+      <div id="kbn5-profile-addresses">Loading saved addresses…</div>
+    </section>
+
+    <section class="kbn5-profile-section kbn5-profile-account-actions">
+      <h3>Account settings</h3>
+      <button type="button" id="kbn5-profile-logout" class="kbn5-profile-logout">Log out</button>
+      <p class="kbn5-profile-hint">Your account data is handled by the KBN5 server.</p>
+    </section>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part6.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part6-shortcut.js') }}" defer></script>
+
+<!-- KBN5 PART 7: NOTIFICATION CENTRE -->
+<div class="kbn5-notification-launcher">
+  <button id="kbn5-notification-toggle"
+          class="kbn5-notification-toggle"
+          type="button"
+          aria-controls="kbn5-notification-panel"
+          aria-expanded="false">
+    <span aria-hidden="true">♧</span>
+    <span>Notifications</span>
+    <span id="kbn5-notification-count"
+          class="kbn5-notification-count"
+          hidden>0</span>
+  </button>
+</div>
+
+<section id="kbn5-notification-panel"
+         class="kbn5-notification-panel"
+         aria-label="Notifications"
+         aria-hidden="true"
+         hidden>
+  <header class="kbn5-notification-header">
+    <div>
+      <h2>Notifications</h2>
+      <p>Order updates and account activity</p>
+    </div>
+    <button id="kbn5-notification-close"
+            class="kbn5-icon-button"
+            type="button"
+            aria-label="Close notifications">×</button>
+  </header>
+
+  <div class="kbn5-notification-toolbar">
+    <button id="kbn5-notification-refresh" type="button">Refresh</button>
+    <button id="kbn5-notification-read-all" type="button">Mark all read</button>
+  </div>
+
+  <p id="kbn5-notification-message"
+     class="kbn5-notification-message"
+     role="status"
+     aria-live="polite"></p>
+
+  <div id="kbn5-notification-list" class="kbn5-notification-list">
+    <div class="kbn5-notification-empty">Loading notifications…</div>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part7.js') }}" defer></script>
+
+<!-- KBN5 PART 8: ADMIN DASHBOARD -->
+<section class="kbn5-admin-launcher">
+  <button id="kbn5-admin-toggle" class="kbn5-admin-primary" type="button">
+    Admin dashboard
+  </button>
+</section>
+
+<section id="kbn5-admin-panel"
+         class="kbn5-admin-panel"
+         aria-label="Admin dashboard"
+         aria-hidden="true"
+         hidden>
+  <header class="kbn5-admin-header">
+    <div>
+      <h2>KBN5 Operations</h2>
+      <p>Products, inventory and order management</p>
+    </div>
+    <button id="kbn5-admin-close" type="button" aria-label="Close admin">×</button>
+  </header>
+
+  <div class="kbn5-admin-toolbar">
+    <button id="kbn5-admin-refresh" class="kbn5-admin-button" type="button">
+      Refresh dashboard
+    </button>
+  </div>
+
+  <p id="kbn5-admin-message" class="kbn5-admin-message"
+     role="status" aria-live="polite"></p>
+
+  <section class="kbn5-admin-section">
+    <h3>Business overview</h3>
+    <div class="kbn5-admin-metrics">
+      <article><span>Total products</span><strong id="kbn5-admin-total-products">—</strong></article>
+      <article><span>Total orders</span><strong id="kbn5-admin-total-orders">—</strong></article>
+      <article><span>Pending orders</span><strong id="kbn5-admin-pending-orders">—</strong></article>
+      <article><span>Revenue</span><strong id="kbn5-admin-revenue">—</strong></article>
+    </div>
+  </section>
+
+  <section class="kbn5-admin-section">
+    <h3 id="kbn5-admin-form-heading">Add product</h3>
+    <form id="kbn5-admin-product-form" class="kbn5-admin-form">
+      <input id="kbn5-admin-editing-id" type="hidden">
+
+      <label for="kbn5-admin-product-name">Product name</label>
+      <input id="kbn5-admin-product-name" required maxlength="180">
+
+      <label for="kbn5-admin-product-description">Description</label>
+      <textarea id="kbn5-admin-product-description" rows="2"></textarea>
+
+      <div class="kbn5-admin-form-grid">
+        <div>
+          <label for="kbn5-admin-product-price">Price (₹)</label>
+          <input id="kbn5-admin-product-price" type="number"
+                 min="0" step="0.01" required>
+        </div>
+        <div>
+          <label for="kbn5-admin-product-stock">Stock quantity</label>
+          <input id="kbn5-admin-product-stock" type="number"
+                 min="0" step="1" required value="0">
+        </div>
+      </div>
+
+      <label for="kbn5-admin-product-category">Category ID (optional)</label>
+      <input id="kbn5-admin-product-category" type="number" min="1">
+
+      <label for="kbn5-admin-product-image">Image key or path</label>
+      <input id="kbn5-admin-product-image" maxlength="255">
+
+      <label class="kbn5-admin-checkbox">
+        <input id="kbn5-admin-product-active" type="checkbox" checked>
+        Product is active
+      </label>
+
+      <div class="kbn5-admin-actions">
+        <button id="kbn5-admin-product-save" class="kbn5-admin-primary"
+                type="submit">Save product</button>
+        <button id="kbn5-admin-product-reset" class="kbn5-admin-button"
+                type="button">Clear form</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="kbn5-admin-section">
+    <h3>Product and inventory management</h3>
+    <div id="kbn5-admin-products" class="kbn5-admin-list">
+      <p>Open the dashboard to load products.</p>
+    </div>
+  </section>
+
+  <section class="kbn5-admin-section">
+    <h3>Order management</h3>
+    <p class="kbn5-admin-help">
+      Only use status changes that are permitted by your backend workflow.
+    </p>
+    <div id="kbn5-admin-orders" class="kbn5-admin-list">
+      <p>Open the dashboard to load orders.</p>
+    </div>
+  </section>
+</section>
+
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part8.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/kbn5-frontend-part10.js') }}" defer></script>
 </body>
 </html>
+
+<!-- KBN5 Responsive Navigation -->
+<header class="kbn5-app-header">
+  <a class="kbn5-brand" href="/" aria-label="KBN5 Home">
+    <span class="kbn5-brand-mark">K5</span>
+    <span class="kbn5-brand-text">
+      <strong>KBN5</strong>
+      <small>5 Minutes in Kiriburu</small>
+    </span>
+  </a>
+
+  <button
+    id="kbn5-menu-toggle"
+    class="kbn5-menu-toggle"
+    type="button"
+    aria-label="Toggle navigation"
+    aria-controls="kbn5-mobile-menu"
+    aria-expanded="false">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <nav id="kbn5-mobile-menu" class="kbn5-mobile-menu">
+    <a href="#products" data-kbn5-scroll="products">Shop</a>
+    <a href="#categories" data-kbn5-scroll="categories">Categories</a>
+    <a href="#orders" data-kbn5-scroll="orders">My Orders</a>
+    <button type="button" id="kbn5-nav-cart">My Cart</button>
+    <button type="button" id="kbn5-nav-profile">My Profile</button>
+  </nav>
+</header>
+
+<div
+  id="kbn5-global-status"
+  class="kbn5-global-status"
+  role="status"
+  aria-live="polite">
+  KBN5 storefront ready
+</div>
