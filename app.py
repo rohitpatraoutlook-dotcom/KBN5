@@ -34,19 +34,27 @@ def create_app():
     from routes.tracking_routes import tracking_bp
     from routes.profile_routes import profile_bp
     from routes.notification_routes import notification_bp
+    from routes.notification_center_routes import notification_center_bp
     from routes.notification_preference_routes import preference_bp
     from routes.customer_order_routes import customer_order_bp
     from routes.account_routes import account_bp
     from routes.admin_user_routes import admin_user_bp
+    from routes.staff_management_routes import staff_bp
     from routes.admin_audit_routes import admin_audit_bp
     from routes.product_routes import product_bp
+    from routes.catalogue_routes import catalogue_bp
     from routes.admin_product_routes import admin_product_bp
     from routes.admin_category_routes import admin_category_bp
     from routes.admin_order_routes import admin_order_bp
     from routes.admin_dashboard_routes import admin_dashboard_bp
+    from routes.operations_dashboard_routes import operations_dashboard_bp
     from routes.admin_image_routes import admin_image_bp
     from routes.address_routes import address_bp
     from routes.admin_area_routes import admin_area_bp
+    from routes.serviceability_routes import serviceability_bp
+    from routes.delivery_routes import delivery_bp
+    from routes.warehouse_routes import warehouse_bp
+    from routes.warehouse_order_routes import warehouse_orders_bp
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -62,19 +70,27 @@ def create_app():
     app.register_blueprint(tracking_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(notification_bp)
+    app.register_blueprint(notification_center_bp)
     app.register_blueprint(preference_bp)
     app.register_blueprint(customer_order_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(admin_user_bp)
+    app.register_blueprint(staff_bp)
     app.register_blueprint(admin_audit_bp)
     app.register_blueprint(product_bp)
+    app.register_blueprint(catalogue_bp)
     app.register_blueprint(admin_product_bp)
     app.register_blueprint(admin_category_bp)
     app.register_blueprint(admin_order_bp)
     app.register_blueprint(admin_dashboard_bp)
+    app.register_blueprint(operations_dashboard_bp)
     app.register_blueprint(admin_image_bp)
     app.register_blueprint(address_bp)
     app.register_blueprint(admin_area_bp)
+    app.register_blueprint(serviceability_bp)
+    app.register_blueprint(delivery_bp)
+    app.register_blueprint(warehouse_bp)
+    app.register_blueprint(warehouse_orders_bp)
 
     @app.get("/")
     def index():
