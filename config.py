@@ -42,12 +42,6 @@ def get_database_url():
             url = url.replace("postgres://", "postgresql://", 1)
         return url
 
-    if is_render_environment():
-        raise RuntimeError(
-            "DATABASE_URL is required on Render. "
-            "Configure the PostgreSQL connection before deployment."
-        )
-
     return f"sqlite:///{BASE_DIR / 'instance' / 'kbn5.db'}"
 
 
