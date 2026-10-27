@@ -63,20 +63,78 @@
 
 <main id="admin-view" hidden>
   <button class="secondary" onclick="showStore()">← Back to store</button>
-  <span class="eyebrow">KBN5 OPERATIONS</span><h1>Admin overview</h1>
-  <div class="admin-notice">DEMO DASHBOARD · Figures below are sample data.</div>
+  <span class="eyebrow">KBN5 OPERATIONS</span>
+  <h1>Admin dashboard</h1>
+
   <div class="stats-grid">
-    <article class="stat">Total orders<strong>128</strong><small>Sample data</small></article>
-    <article class="stat">Sales value<strong>₹24,850</strong><small>Illustrative only</small></article>
-    <article class="stat">Products<strong id="admin-product-count">8</strong><small>Demo catalogue</small></article>
-    <article class="stat">Low stock<strong>3</strong><small>Example alert</small></article>
+    <article class="stat">Total orders<strong id="ad-total-orders">—</strong><small>All orders</small></article>
+    <article class="stat">Orders today<strong id="ad-orders-today">—</strong><small>Last 24 hours</small></article>
+    <article class="stat">Customers<strong id="ad-customers">—</strong><small>Registered customers</small></article>
+    <article class="stat">Low stock<strong id="ad-low-stock">—</strong><small>Stock alerts</small></article>
   </div>
-  <section class="admin-panel"><h2>Recent orders</h2>
-  <p>#KBN-1028 · ₹540 · Confirmed</p>
-  <p>#KBN-1027 · ₹285 · Picking</p>
-  <p>#KBN-1026 · ₹760 · Out for delivery</p>
-  <p>#KBN-1025 · ₹190 · Delivered</p></section>
-  <section class="admin-panel"><h2>Product catalogue</h2><div id="admin-products" class="admin-products"></div></section>
+
+  <section class="admin-panel">
+    <h2>Sales overview</h2>
+    <p>Paid revenue: <strong id="ad-revenue">—</strong></p>
+    <p>Active products: <strong id="ad-active-products">—</strong></p>
+    <p id="ad-dashboard-message" role="status">Dashboard data will load when the admin panel opens.</p>
+  </section>
+
+  <section class="admin-panel">
+    <h2>Manage orders</h2>
+    <label for="ad-order-filter">Filter by status</label>
+    <select id="ad-order-filter">
+      <option value="">All orders</option>
+      <option value="placed">Placed</option>
+      <option value="confirmed">Confirmed</option>
+      <option value="stock_reserved">Stock reserved</option>
+      <option value="picking_assigned">Picking assigned</option>
+      <option value="picking">Picking</option>
+      <option value="picked">Picked</option>
+      <option value="packing">Packing</option>
+      <option value="ready_for_dispatch">Ready for dispatch</option>
+      <option value="delivery_assigned">Delivery assigned</option>
+      <option value="picked_up">Picked up</option>
+      <option value="out_for_delivery">Out for delivery</option>
+      <option value="delivered">Delivered</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+    <button type="button" class="secondary" onclick="loadAdminOrders()">Refresh orders</button>
+    <div id="ad-orders-list" aria-live="polite">Orders will appear here.</div>
+  </section>
+
+  <section class="admin-panel">
+    <h2>Product catalogue</h2>
+    <form id="ad-product-form">
+      <label for="ad-product-name">Product name</label>
+      <input id="ad-product-name" name="name" required maxlength="160">
+      <label for="ad-product-description">Description</label>
+      <textarea id="ad-product-description" name="description" rows="2"></textarea>
+      <label for="ad-product-price">Price (₹)</label>
+      <input id="ad-product-price" name="price" type="number" min="0" step="0.01" required>
+      <label for="ad-product-stock">Stock quantity</label>
+      <input id="ad-product-stock" name="stock" type="number" min="0" step="1" required>
+      <label for="ad-product-category">Category</label>
+      <select id="ad-product-category" name="category_id">
+        <option value="">No category</option>
+      </select>
+      <button type="submit" id="ad-product-submit">Add product</button>
+      <button type="button" class="secondary" onclick="resetAdminProductForm()">Clear form</button>
+      <p id="ad-product-message" role="status"></p>
+    </form>
+    <div id="ad-products-list">Products will appear here.</div>
+  </section>
+
+  <section class="admin-panel">
+    <h2>Manage categories</h2>
+    <form id="ad-category-form">
+      <label for="ad-category-name">New category name</label>
+      <input id="ad-category-name" name="name" required maxlength="100">
+      <button type="submit">Add category</button>
+    </form>
+    <p id="ad-category-message" role="status"></p>
+    <div id="ad-categories-list">Categories will appear here.</div>
+  </section>
 </main>
 
 

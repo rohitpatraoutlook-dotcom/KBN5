@@ -293,7 +293,23 @@ footer {
 @media(max-width:580px) {
   .topbar { display:grid;grid-template-columns:1fr auto }
   .search { grid-column:1/3;grid-row:2 }
-  .admin-link { display:none }
+  .admin-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+  .topbar .brand {
+    min-width: 0;
+  }
+  .topbar .cart-button {
+    justify-self: end;
+  }
   .hero { grid-template-columns:1fr;margin:12px 3% }
   .hero-copy { padding:32px 7% 20px }
   .hero h1 { font-size:46px }
@@ -444,4 +460,99 @@ button:disabled {
 
 #orders-list:empty {
   min-height: 24px;
+}
+
+/* KBN5 admin dashboard */
+#admin-view {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 20px;
+}
+
+#admin-view .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+#admin-view .stat,
+#admin-view .admin-panel {
+  min-width: 0;
+  border: 1px solid var(--border, #dce8df);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--surface, #fff);
+}
+
+#admin-view .stat strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+#admin-view .admin-panel {
+  margin: 18px 0;
+}
+
+#admin-view .admin-panel h2 {
+  margin-top: 0;
+}
+
+#admin-view label {
+  display: block;
+  margin: 12px 0 6px;
+  font-weight: 600;
+}
+
+#admin-view input,
+#admin-view textarea,
+#admin-view select {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+#admin-view button {
+  margin: 6px 6px 6px 0;
+}
+
+#admin-view .admin-order,
+#admin-view .admin-product,
+#admin-view .admin-category {
+  border: 1px solid var(--border, #dce8df);
+  border-radius: 12px;
+  padding: 14px;
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+
+#admin-view .admin-order h3 {
+  margin-top: 0;
+}
+
+#admin-view [role="status"] {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  #admin-view {
+    padding: 12px;
+  }
+
+  #admin-view .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  #admin-view .stat,
+  #admin-view .admin-panel {
+    padding: 12px;
+  }
+
+  #admin-view .stat strong {
+    font-size: 1.2rem;
+  }
 }

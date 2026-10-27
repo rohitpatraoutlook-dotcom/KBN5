@@ -156,11 +156,20 @@ function closeCart() {
   el("cart-overlay").classList.remove("open");
 }
 
+let adminEditingProductId = null;
+let adminCategories = [];
+
 function showAdmin() {
+  if (!accountToken || !accountUser || accountUser.role !== "admin") {
+    showToast("Admin sign-in required");
+    if (typeof openAccount === "function") openAccount();
+    return;
+  }
+
   el("store-view").hidden = true;
   el("admin-view").hidden = false;
-  renderAdmin();
   window.scrollTo(0, 0);
+  loadAdminData();
 }
 
 function showStore() {
@@ -169,16 +178,276 @@ function showStore() {
   window.scrollTo(0, 0);
 }
 
+function adminMessage(id, message) {
+  const node = el(id);
+  if (node) node.textContent = message;
+}
+
+function adminRupees(paise) {
+  return money((Number(paise) || 0) / 100);
+}
+
+async function loadAdminData() {
+  adminMessage("ad-dashboard-message", "Loading dashboard…");
+  try {
+    const [dashboard, orders, categories] = await Promise.all([
+      kbn5Api("/api/v1/admin/dashboard/"),
+      kbn5Api("/api/v1/admin/orders/?page=1&per_page=20"),
+      kbn5Api("/api/v1/admin/categories/")
+    ]);
+
+    const summary = dashboard.summary || {};
+    el("ad-total-orders").textContent = summary.total_orders ?? 0;
+    el("ad-orders-today").textContent = summary.orders_last_24_hours ?? 0;
+    el("ad-customers").textContent = summary.total_customers ?? 0;
+    el("ad-low-stock").textContent = summary.low_stock_products ?? 0;
+    el("ad-revenue").textContent = adminRupees(summary.paid_revenue_paise);
+    el("ad-active-products").textContent = summary.active_products ?? 0;
+
+    adminCategories = categories.items || [];
+    renderAdminCategories();
+    renderAdminOrders(orders.items || []);
+    await loadAdminProducts();
+
+    adminMessage("ad-dashboard-message", "Dashboard data loaded.");
+  } catch (error) {
+    adminMessage("ad-dashboard-message", "Could not load dashboard: " + error.message);
+  }
+}
+
+async function loadAdminOrders() {
+  const status = el("ad-order-filter").value;
+  const query = status ? "?status=" + encodeURIComponent(status) + "&page=1&per_page=20" : "?page=1&per_page=20";
+  adminMessage("ad-dashboard-message", "Refreshing orders…");
+  try {
+    const data = await kbn5Api("/api/v1/admin/orders/" + query);
+    renderAdminOrders(data.items || []);
+    adminMessage("ad-dashboard-message", "Orders refreshed.");
+  } catch (error) {
+    el("ad-orders-list").textContent = "Could not load orders: " + error.message;
+  }
+}
+
+function renderAdminOrders(orders) {
+  const root = el("ad-orders-list");
+  if (!orders.length) {
+    root.textContent = "No orders found.";
+    return;
+  }
+
+  root.innerHTML = orders.map(order => {
+    const options = {
+      placed: ["confirmed", "cancelled"],
+      confirmed: ["stock_reserved", "cancelled"],
+      stock_reserved: ["picking_assigned", "cancelled"],
+      picking_assigned: ["picking", "cancelled"],
+      picking: ["picked", "cancelled"],
+      picked: ["packing"],
+      packing: ["ready_for_dispatch"],
+      ready_for_dispatch: ["delivery_assigned"],
+      delivery_assigned: ["picked_up"],
+      picked_up: ["out_for_delivery"],
+      out_for_delivery: ["delivered"],
+      delivered: [],
+      cancelled: []
+    };
+    const next = options[order.status] || [];
+    const choices = next.map(status =>
+      '<option value="' + status + '">' + status.replaceAll("_", " ") + '</option>'
+    ).join("");
+
+    return '<article class="admin-order">' +
+      '<h3>' + escapeAdmin(order.order_number || ("Order #" + order.id)) + '</h3>' +
+      '<p>Status: ' + escapeAdmin(order.status) + ' · Payment: ' + escapeAdmin(order.payment_status || "unknown") + '</p>' +
+      '<p>Total: ' + adminRupees(order.total_paise) + ' · ' + escapeAdmin(order.created_at || "") + '</p>' +
+      '<p>' + (order.items || []).map(item =>
+        escapeAdmin(item.product_name) + " × " + Number(item.quantity || 0)
+      ).join(", ") + '</p>' +
+      (next.length ? '<label>Next status <select id="ad-status-' + Number(order.id) + '">' + choices + '</select></label> ' +
+      '<button type="button" onclick="updateAdminOrder(' + Number(order.id) + ')">Update status</button>' : '') +
+      '</article>';
+  }).join("");
+}
+
+function escapeAdmin(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[char]);
+}
+
+async function updateAdminOrder(orderId) {
+  const select = el("ad-status-" + orderId);
+  if (!select || !select.value) return;
+  try {
+    await kbn5Api("/api/v1/admin/orders/" + orderId + "/status", {
+      method: "PATCH",
+      body: JSON.stringify({status: select.value})
+    });
+    showToast("Order status updated");
+    await loadAdminData();
+  } catch (error) {
+    showToast("Order update failed: " + error.message);
+  }
+}
+
+async function loadAdminProducts() {
+  try {
+    const data = await kbn5Api("/api/v1/products/?per_page=100");
+    const products = data.items || [];
+    const root = el("ad-products-list");
+    if (!products.length) {
+      root.textContent = "No active products found.";
+      return;
+    }
+
+    root.innerHTML = products.map(product =>
+      '<article class="admin-product">' +
+      '<strong>' + escapeAdmin(product.name) + '</strong>' +
+      '<p>' + adminRupees(product.price_paise) + ' · Stock: ' + Number(product.stock_quantity || 0) + '</p>' +
+      '<p>' + escapeAdmin(product.category_name || "No category") + '</p>' +
+      '<button type="button" onclick="editAdminProduct(' + Number(product.id) + ')">Edit</button> ' +
+      '<button type="button" class="secondary" onclick="deactivateAdminProduct(' + Number(product.id) + ')">Deactivate</button>' +
+      '</article>'
+    ).join("");
+
+    window.kbn5AdminProducts = products;
+  } catch (error) {
+    el("ad-products-list").textContent = "Could not load products: " + error.message;
+  }
+}
+
+function renderAdminCategories() {
+  const select = el("ad-product-category");
+  select.innerHTML = '<option value="">No category</option>' +
+    adminCategories.filter(category => category.is_active).map(category =>
+      '<option value="' + Number(category.id) + '">' + escapeAdmin(category.name) + '</option>'
+    ).join("");
+
+  const root = el("ad-categories-list");
+  root.innerHTML = adminCategories.map(category =>
+    '<article class="admin-category"><strong>' + escapeAdmin(category.name) + '</strong> ' +
+    (category.is_active ? "Active" : "Inactive") +
+    ' <button type="button" onclick="renameAdminCategory(' + Number(category.id) + ')">Rename</button>' +
+    ' <button type="button" class="secondary" onclick="toggleAdminCategory(' + Number(category.id) + ',' + (!category.is_active) + ')">' +
+    (category.is_active ? "Deactivate" : "Activate") + '</button></article>'
+  ).join("");
+}
+
+function resetAdminProductForm() {
+  adminEditingProductId = null;
+  el("ad-product-form").reset();
+  el("ad-product-submit").textContent = "Add product";
+}
+
+function editAdminProduct(productId) {
+  const product = (window.kbn5AdminProducts || []).find(item => Number(item.id) === Number(productId));
+  if (!product) return showToast("Product not found in current list");
+
+  adminEditingProductId = product.id;
+  el("ad-product-name").value = product.name || "";
+  el("ad-product-description").value = product.description || "";
+  el("ad-product-price").value = (Number(product.price_paise) / 100).toFixed(2);
+  el("ad-product-stock").value = Number(product.stock_quantity || 0);
+  el("ad-product-category").value = product.category_id || "";
+  el("ad-product-submit").textContent = "Save product";
+  el("ad-product-form").scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+el("ad-product-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const editingId = adminEditingProductId;
+  const price = Number(el("ad-product-price").value);
+  const stock = Number(el("ad-product-stock").value);
+
+  if (!Number.isFinite(price) || price < 0 || !Number.isInteger(stock) || stock < 0) {
+    adminMessage("ad-product-message", "Enter a valid price and whole-number stock quantity.");
+    return;
+  }
+
+  const payload = {
+    name: el("ad-product-name").value.trim(),
+    description: el("ad-product-description").value.trim(),
+    price_paise: Math.round(price * 100),
+    stock_quantity: stock,
+    category_id: el("ad-product-category").value ? Number(el("ad-product-category").value) : null
+  };
+
+  try {
+    await kbn5Api(editingId ? "/api/v1/admin/products/" + editingId : "/api/v1/admin/products/", {
+      method: editingId ? "PATCH" : "POST",
+      body: JSON.stringify(payload)
+    });
+    resetAdminProductForm();
+    adminMessage("ad-product-message", editingId ? "Product updated." : "Product added.");
+    await loadAdminProducts();
+    showToast(editingId ? "Product updated" : "Product added");
+  } catch (error) {
+    adminMessage("ad-product-message", "Product save failed: " + error.message);
+  }
+});
+
+async function deactivateAdminProduct(productId) {
+  if (!confirm("Deactivate this product?")) return;
+  try {
+    await kbn5Api("/api/v1/admin/products/" + productId, {method: "DELETE"});
+    showToast("Product deactivated");
+    await loadAdminData();
+  } catch (error) {
+    showToast("Could not deactivate product: " + error.message);
+  }
+}
+
+el("ad-category-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const name = el("ad-category-name").value.trim();
+  if (!name) return;
+
+  try {
+    await kbn5Api("/api/v1/admin/categories/", {
+      method: "POST",
+      body: JSON.stringify({name})
+    });
+    el("ad-category-form").reset();
+    adminMessage("ad-category-message", "Category added.");
+    await loadAdminData();
+  } catch (error) {
+    adminMessage("ad-category-message", "Category creation failed: " + error.message);
+  }
+});
+
+async function renameAdminCategory(categoryId) {
+  const category = adminCategories.find(item => Number(item.id) === Number(categoryId));
+  if (!category) return;
+  const name = prompt("New category name:", category.name);
+  if (name === null || !name.trim()) return;
+
+  try {
+    await kbn5Api("/api/v1/admin/categories/" + categoryId, {
+      method: "PATCH",
+      body: JSON.stringify({name: name.trim()})
+    });
+    showToast("Category renamed");
+    await loadAdminData();
+  } catch (error) {
+    showToast("Category rename failed: " + error.message);
+  }
+}
+
+async function toggleAdminCategory(categoryId, isActive) {
+  try {
+    await kbn5Api("/api/v1/admin/categories/" + categoryId, {
+      method: "PATCH",
+      body: JSON.stringify({is_active: isActive})
+    });
+    showToast(isActive ? "Category activated" : "Category deactivated");
+    await loadAdminData();
+  } catch (error) {
+    showToast("Category update failed: " + error.message);
+  }
+}
+
 function renderAdmin() {
-  el("admin-product-count").textContent = catalogue.length;
-  el("admin-products").innerHTML = catalogue.map(p => `
-    <div class="admin-product">
-      <span>${p.emoji}</span>
-      <b>${p.name}</b>
-      <small>${p.category}</small>
-      <strong>${money(p.price)} / ${p.unit}</strong>
-    </div>
-  `).join("");
+  // Real dashboard data is loaded only after an authenticated admin opens it.
 }
 
 function showToast(message) {
