@@ -1849,3 +1849,13 @@ body.kbn5-cart-open .kbn5-cart-backdrop{opacity:1;visibility:visible}
     display: flex !important;
   }
 }
+
+
+/* Profile address and password forms */
+.kbn5-profile-edit-form[hidden]{display:none!important}
+.kbn5-profile-edit-form button{align-self:start}
+.kbn5-profile-checkbox-label{display:flex!important;align-items:center;gap:8px}
+.kbn5-profile-checkbox-label input{width:auto!important;min-width:auto!important}
+#kbn5-profile-password-heading h4{margin:18px 0 5px;font-size:14px}
+#kbn5-profile-password-mount{margin-top:12px}
+#kbn5-profile-password-form{margin-bottom:14px}
