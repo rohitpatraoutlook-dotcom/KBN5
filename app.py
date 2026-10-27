@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, request, render_template
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import text
 
@@ -78,11 +78,7 @@ def create_app():
 
     @app.get("/")
     def index():
-        return jsonify({
-            "name": "KBN5 Core",
-            "description": "5 Minutes in Kiriburu",
-            "status": "prototype",
-        })
+        return render_template("index.html")
 
     @app.get("/health")
     def health():

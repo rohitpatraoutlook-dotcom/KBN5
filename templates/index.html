@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12382b">
+  <title>KBN5 — 5 Minutes in Kiriburu</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kbn5.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#"><span class="brand-mark">K5</span>
+    <span><b>KBN5</b><small>5 Minutes in Kiriburu</small></span></a>
+  <div class="location"><small>DELIVERING TO</small><b>Kiriburu, Jharkhand</b></div>
+  <label class="search">⌕ <input id="search" placeholder="Search products..."></label>
+  <button class="admin-link" onclick="showAdmin()">Admin ↗</button>
+  <button class="cart-button" onclick="openCart()">Bag <span id="cart-count">0</span></button>
+</header>
+
+<main id="store-view">
+<section class="hero">
+  <div class="hero-copy">
+    <span class="eyebrow">✳ YOUR LOCAL QUICK-COMMERCE STORE</span>
+    <h1>Kiriburu, meet<br>your new <em>favourite.</em></h1>
+    <p>Everyday essentials. Local convenience. A better way to shop in your neighbourhood.</p>
+    <button class="primary" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})">Explore products →</button>
+    <div class="hero-foot">✦ Local-first shopping &nbsp; ✦ Clear pricing</div>
+  </div>
+  <div class="hero-art">
+    <div class="sun"></div>
+    <div class="bag-art"><span>K5</span><div>🥬 🍎 🥛</div></div>
+    <div class="floating-card">✓ &nbsp; Shopping made simple</div>
+  </div>
+</section>
+
+<section class="benefits">
+  <div>⌂ <span><b>Local convenience</b><small>Made for Kiriburu</small></span></div>
+  <div>◷ <span><b>Quick ordering</b><small>Less time, less hassle</small></span></div>
+  <div>₹ <span><b>Clear pricing</b><small>Know what you pay</small></span></div>
+  <div>♡ <span><b>Daily essentials</b><small>Your neighbourhood</small></span></div>
+</section>
+
+<section class="shop-section" id="shop">
+  <span class="eyebrow">THE NEIGHBOURHOOD STORE</span>
+  <h2>What do you need today?</h2>
+  <p class="muted">Explore our sample collection of everyday essentials.</p>
+  <div id="categories" class="categories"></div>
+  <div class="product-toolbar"><b id="result-title">Popular picks</b><span id="result-count"></span></div>
+  <div id="products" class="products"></div>
+  <div id="empty" hidden>No products found.</div>
+</section>
+
+<section class="bottom-banner">
+  <div><span class="eyebrow">BUILT FOR KIRIBURU</span>
+  <h2>Your neighbourhood. One simpler experience.</h2>
+  <p>KBN5 — local roots, everyday convenience.</p></div><strong class="banner-mark">K5</strong>
+</section>
+<footer><b>KBN5</b><span>5 Minutes in Kiriburu · Prototype</span><span>© 2026 KBN5</span></footer>
+</main>
+
+<main id="admin-view" hidden>
+  <button class="secondary" onclick="showStore()">← Back to store</button>
+  <span class="eyebrow">KBN5 OPERATIONS</span><h1>Admin overview</h1>
+  <div class="admin-notice">DEMO DASHBOARD · Figures below are sample data.</div>
+  <div class="stats-grid">
+    <article class="stat">Total orders<strong>128</strong><small>Sample data</small></article>
+    <article class="stat">Sales value<strong>₹24,850</strong><small>Illustrative only</small></article>
+    <article class="stat">Products<strong id="admin-product-count">8</strong><small>Demo catalogue</small></article>
+    <article class="stat">Low stock<strong>3</strong><small>Example alert</small></article>
+  </div>
+  <section class="admin-panel"><h2>Recent orders</h2>
+  <p>#KBN-1028 · ₹540 · Confirmed</p>
+  <p>#KBN-1027 · ₹285 · Picking</p>
+  <p>#KBN-1026 · ₹760 · Out for delivery</p>
+  <p>#KBN-1025 · ₹190 · Delivered</p></section>
+  <section class="admin-panel"><h2>Product catalogue</h2><div id="admin-products" class="admin-products"></div></section>
+</main>
+
+<div class="overlay" id="cart-overlay" onclick="if(event.target===this)closeCart()">
+  <aside class="cart-drawer">
+    <button class="close" onclick="closeCart()">× Close</button>
+    <h2>Your shopping bag</h2>
+    <div id="cart-items"></div>
+    <div id="cart-empty">Your bag is empty.</div>
+    <div id="cart-summary" hidden><h3 id="cart-subtotal"></h3>
+    <button class="primary" onclick="checkoutDemo()">Continue to checkout →</button>
+    <p class="muted">Demo only. No real order or payment.</p></div>
+  </aside>
+</div>
+<div id="toast" class="toast" role="status"></div>
+<script src="{{ url_for('static', filename='js/kbn5.js') }}"></script>
+</body>
+</html>
