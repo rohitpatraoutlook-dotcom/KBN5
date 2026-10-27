@@ -169,7 +169,7 @@
     try {
       await request(API.assign, {
         method: "POST",
-        body: JSON.stringify({order_id: orderId, delivery_partner_id: staffId})
+        body: JSON.stringify({order_id: orderId, delivery_user_id: staffId})
       });
       message("Delivery assignment submitted.");
       await loadDashboard();
@@ -204,7 +204,7 @@
         if (!panel.hidden) refresh();
       }
     }
-    if (event.target.closest("#kbn5-ops-assign")) assignDelivery();
+    if (event.target.closest("#kbn5-ops-assign-button")) assignDelivery();
   });
 
   window.KBN5OperationsUI = {
